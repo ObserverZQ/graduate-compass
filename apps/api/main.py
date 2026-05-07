@@ -3,7 +3,10 @@ from fastapi import FastAPI
 from openai import OpenAI
 from google import genai
 from dotenv import load_dotenv
+from database import engine
 import os
+
+from sqlalchemy import text
 
 load_dotenv()
 app = FastAPI()
@@ -15,6 +18,14 @@ client = OpenAI(
 @app.get("/")
 async def home():
     return {"reply": "Hello World"}
+
+
+# health check endpoint
+@app.get("/health")
+async def health():
+    async with engine.connect() as conn:
+        await conn.execute(text("SELECT 1"))
+    return {"status": "ok", "db": "connected"}
 
 
 @app.get("/ping")
