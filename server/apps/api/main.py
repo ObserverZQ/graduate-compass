@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from openai import OpenAI
 from google import genai
 from dotenv import load_dotenv
-from database import engine
+from server.apps.api.database import engine
 import os
 
 from sqlalchemy import text

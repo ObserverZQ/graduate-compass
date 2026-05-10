@@ -1,2 +1,12 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "graduate-compass"
+version = "0.1.0"
+description = "Graduate Compass API"
+requires-python = ">=3.12"
+
 [tool.fastapi]
-entrypoint = "apps.api.main:app"
+entrypoint = "server.apps.api.main:app" 
