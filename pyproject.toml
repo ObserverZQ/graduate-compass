@@ -9,4 +9,4 @@ description = "Graduate Compass API"
 requires-python = ">=3.12"
 
 [tool.fastapi]
-entrypoint = "server.apps.api.main:app" 
+entrypoint = "apps.api.main:app" 
