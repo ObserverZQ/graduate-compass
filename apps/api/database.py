@@ -26,6 +26,8 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if DATABASE_URL is None:
     raise RuntimeError("DATABASE_URL environment variable is not set")
 
-engine = create_async_engine(DATABASE_URL)
+# engine = create_async_engine(DATABASE_URL)
+engine = create_async_engine(DATABASE_URL, connect_args={"ssl": "require"})
+
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 Base = declarative_base()
