@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 
+# this file is for converting the json file of universities into a csv.
 def to_pg_csv_array(lst):
     if not lst:
         return ""
