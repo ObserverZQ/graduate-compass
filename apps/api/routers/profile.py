@@ -20,10 +20,14 @@ deepseek = OpenAI(
 )
 
 # Module-level Supabase client for Storage uploads (resume PDFs).
-supabase_client: Client = create_client(
-    os.environ["SUPABASE_URL"],
-    os.environ["SUPABASE_SERVICE_ROLE_KEY"],
-)
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+if SUPABASE_URL is None:
+    raise RuntimeError("SUPABASE_URL environment variable is not set")
+if SUPABASE_SERVICE_ROLE_KEY is None:
+    raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY environment variable is not set")
+
+supabase_client: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 # Prompt asking DeepSeek to return a single JSON object with all resume fields.
 # null is used for any field not found, so missing data never causes a KeyError.
