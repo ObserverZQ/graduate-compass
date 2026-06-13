@@ -5,7 +5,7 @@ import ThemeToggle from "./theme";
 
 export default function Topbar() {
   return (
-    <header className="sticky top-0 z-50 border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm">
+    <header className="sticky top-0 z-50 border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
       <nav className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
         <Link
           href="/"

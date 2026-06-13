@@ -6,6 +6,7 @@ import PreferencesChat from "@/components/preferences-chat";
 
 export default function ResumePage() {
   const [extractedText, setExtractedText] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   return (
     <main className="flex-1 max-w-2xl mx-auto w-full px-6 py-16 flex flex-col gap-16">
@@ -16,7 +17,12 @@ export default function ResumePage() {
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-8">
           We&apos;ll read your profile to help match graduate programs.
         </p>
-        <FileUpload onSuccess={(text) => setExtractedText(text)} />
+        <FileUpload
+          onSuccess={(text, sid) => {
+            setExtractedText(text);
+            setSessionId(sid);
+          }}
+        />
       </section>
 
       {extractedText && (
