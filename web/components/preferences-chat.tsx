@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import type { Preferences } from '@/lib/types';
 
-const STEPS = [
+export const STEPS = [
   {
     id: 'locations',
     question: 'Where would you like to study? You can pick multiple.',
@@ -35,19 +36,19 @@ type Message =
 
 interface PreferencesChatProps {
   resumeText: string;
+  onComplete: (preferences: Preferences) => void;
 }
 
 export default function PreferencesChat({
   resumeText: _resumeText,
+  onComplete,
 }: PreferencesChatProps) {
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', text: STEPS[0].question },
   ]);
   const [currentStep, setCurrentStep] = useState(0);
   const [selections, setSelections] = useState<string[]>([]);
-  const [preferences, setPreferences] = useState<
-    Record<string, string | string[]>
-  >({});
+  const [preferences, setPreferences] = useState<Preferences>({});
   const [done, setDone] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -96,15 +97,21 @@ export default function PreferencesChat({
           { role: 'assistant', text: buildSummary(newPrefs) },
         ]);
         setDone(true);
+        setTimeout(() => onComplete(newPrefs), 220);
       }, 220);
     }
+  }
+
+  function skipAll() {
+    setDone(true);
+    onComplete({});
   }
 
   function buildSummary(prefs: Record<string, string | string[]>) {
     const lines = STEPS.map((s) => {
       const val = prefs[s.id];
       if (!val) return null;
-      const display = s.id + ': ' + Array.isArray(val) ? val.join(', ') : val;
+      const display = `${s.id}: ${Array.isArray(val) ? val.join(', ') : val}`;
       return `• ${display}`;
     }).filter(Boolean);
 
@@ -175,19 +182,15 @@ export default function PreferencesChat({
             >
               Skip →
             </button>
+            {currentStep === 0 && (
+              <button
+                onClick={skipAll}
+                className='text-sm text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors ml-auto underline underline-offset-2'
+              >
+                Skip preferences →
+              </button>
+            )}
           </div>
-        </div>
-      )}
-
-      {/* Summary CTA */}
-      {done && (
-        <div className='animate-fade-in'>
-          <button
-            disabled
-            className='rounded-lg px-5 py-2.5 text-sm font-medium bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 opacity-40 cursor-not-allowed'
-          >
-            Find my programs → (coming soon)
-          </button>
         </div>
       )}
     </div>

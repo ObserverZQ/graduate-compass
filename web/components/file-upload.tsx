@@ -2,15 +2,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { uploadResume, ApiError } from '@/lib/api';
+import SpinnerCard from '@/components/spinner-card';
 
 type UploadState =
   | { status: 'idle' }
   | { status: 'uploading' }
-  | { status: 'success'; extractedText: string; sessionId: string }
+  | { status: 'success'; extractedText: string; sessionId: string; resumeFileUrl: string }
   | { status: 'error'; message: string };
 
 interface FileUploadProps {
-  onSuccess: (extractedText: string, sessionId: string) => void;
+  onSuccess: (extractedText: string, sessionId: string, resumeFileUrl: string) => void;
 }
 
 export default function FileUpload({ onSuccess }: FileUploadProps) {
@@ -27,7 +28,7 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
 
   useEffect(() => {
     if (state.status === 'success') {
-      onSuccess(state.extractedText, state.sessionId);
+      onSuccess(state.extractedText, state.sessionId, state.resumeFileUrl);
     }
   }, [state, onSuccess]);
 
@@ -49,6 +50,7 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
         status: 'success',
         extractedText: result.extracted_text,
         sessionId: result.session_id,
+        resumeFileUrl: result.resume_file_url,
       });
     } catch (err) {
       const msg =
@@ -146,30 +148,7 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
   }
 
   if (state.status === 'uploading') {
-    return (
-      <div className='rounded-xl border-2 border-dashed border-zinc-200 dark:border-zinc-700 p-12 text-center'>
-        <div className='flex justify-center mb-3'>
-          <svg
-            xmlns='http://www.w3.org/2000/svg'
-            width='24'
-            height='24'
-            viewBox='0 0 24 24'
-            fill='none'
-            stroke='currentColor'
-            strokeWidth='2'
-            strokeLinecap='round'
-            strokeLinejoin='round'
-            className='text-zinc-400 animate-spin'
-            aria-hidden='true'
-          >
-            <path d='M21 12a9 9 0 1 1-6.219-8.56' />
-          </svg>
-        </div>
-        <p className='text-sm text-zinc-500 dark:text-zinc-400'>
-          Uploading and analyzing…
-        </p>
-      </div>
-    );
+    return <SpinnerCard label='Uploading resume…' />;
   }
 
   return (
