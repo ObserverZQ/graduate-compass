@@ -3,64 +3,17 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.engine import CursorResult
 from apps.api.database import SessionLocal
-from openai import AsyncOpenAI
-from supabase import create_client, Client
+from apps.api.clients import deepseek, supabase
+from apps.api.prompts.resume_extraction import EXTRACTION_PROMPT
 import pdfplumber
 import asyncio
 import io
 import json
-import os
 import time
 import uuid
 from typing import cast
 
 router = APIRouter()
-
-# Reuse the same DeepSeek client pattern from health.py.
-# Module-level init so the client is created once on startup, not per request.
-# AsyncOpenAI lets the analyze-resume endpoint await the completion natively
-# instead of blocking a thread-pool worker for the ~10s call.
-deepseek = AsyncOpenAI(
-    api_key=os.getenv("DEEPSEEK_API_KEY"),
-    base_url="https://api.deepseek.com",
-)
-
-# Module-level Supabase client for Storage uploads (resume PDFs).
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-if SUPABASE_URL is None:
-    raise RuntimeError("SUPABASE_URL environment variable is not set")
-if SUPABASE_SERVICE_ROLE_KEY is None:
-    raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY environment variable is not set")
-
-supabase_client: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-
-# Prompt asking DeepSeek to return a single JSON object with all resume fields.
-# null is used for any field not found, so missing data never causes a KeyError.
-_EXTRACTION_PROMPT = """\
-Parse the resume text below and return a single JSON object with these exact keys.
-Use null for any field not present in the resume.
-Keep all free-text descriptions concise (1-2 sentences). Do not copy full
-bullet-point lists from the resume verbatim.
-
-Keys:
-- name: string — applicant's full name
-- gpa: number — GPA value (e.g. 3.8)
-- gpa_base: number — GPA scale (4.0, 5.0, or 100.0); infer from context if not stated
-- gpa_ranking: string — undergraduate school name or ranking text (e.g. "MIT", "Top 50 US university")
-- toefl_scale_6: number — TOEFL's latest iBT score (range 0-6); null if not found
-- toefl_scale_120: integer — TOEFL (range 0-120); null if not found
-- ielts: number — IELTS band score (range 0-9); null if not found
-- target_degrees: array of strings — degrees the applicant mentions targeting, e.g. ["MS", "PhD"]
-- work_experiences: array of objects with keys: company, title, start_date, end_date, description
-  - description: a brief 1-2 sentence summary of the role's key responsibility/impact
-- research_experiences: array of objects with keys: institution, title, start_date, end_date, description
-  - description: a brief 1-2 sentence summary of the research focus/contribution
-- publications: array of objects with keys: title, venue, year, authors
-
-Resume:
-{resume_text}
-"""
 
 
 class WorkExperience(BaseModel):
@@ -142,12 +95,12 @@ async def upload_resume(
         # same session_id.
         t0 = time.perf_counter()
         storage_path = f"{session_id}.pdf"
-        supabase_client.storage.from_("resume_test").upload(
+        supabase.storage.from_("resume_test").upload(
             path=storage_path,
             file=contents,
             file_options={"content-type": "application/pdf", "upsert": "true"},
         )
-        url = supabase_client.storage.from_("resume_test").get_public_url(storage_path)
+        url = supabase.storage.from_("resume_test").get_public_url(storage_path)
         print(f"[upload-resume] _upload_pdf took {time.perf_counter() - t0:.2f}s")
         return url
 
@@ -194,7 +147,7 @@ async def analyze_resume(payload: AnalyzeResumeRequest):
         model="deepseek-chat",
         messages=[{
             "role": "user",
-            "content": _EXTRACTION_PROMPT.format(resume_text=payload.resume_raw_text),
+            "content": EXTRACTION_PROMPT.format(resume_text=payload.resume_raw_text),
         }],
         response_format={"type": "json_object"},
     )
