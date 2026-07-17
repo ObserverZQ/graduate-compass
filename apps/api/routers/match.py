@@ -8,22 +8,23 @@ router = APIRouter()
 class MatchRequest(BaseModel):
     session_id: str
 
+# TODO: match function, 5 stages, working in progress
 async def match_pipeline(session_id: str):
     # Stage 1: Hard filter (deterministic, no LLM)
-    yield sse("stage", {"id": 1, "label": "Filtering programs by your hard requirements"})
-    candidates = await hard_filter(session_id)  # GPA/TOEFL/degree_type/preferences
-    yield sse("stage_done", {"id": 1, "count": len(candidates)})
+    # yield sse("stage", {"id": 1, "label": "Filtering programs by your hard requirements"})
+    # candidates = await hard_filter(session_id)  # GPA/TOEFL/degree_type/preferences
+    # yield sse("stage_done", {"id": 1, "count": len(candidates)})
 
     # Stage 2: Synthesize research interest profile (1 LLM call)
-    yield sse("stage", {"id": 2, "label": "Reading your resume and preferences to understand your profile"})
-    interest_profile = await synthesize_interests(session_id)
-    yield sse("stage_done", {"id": 2, "summary": interest_profile})
+    # yield sse("stage", {"id": 2, "label": "Reading your resume and preferences to understand your profile"})
+    # interest_profile = await synthesize_interests(session_id)
+    # yield sse("stage_done", {"id": 2, "summary": interest_profile})
 
     # Stage 3: Vector retrieval (pgvector, no LLM)
-    yield sse("stage", {"id": 3, "label": "Finding programs aligned with your inclination"})
-    interest_embedding = await embed(interest_profile)
-    top_candidates = await pgvector_topk(candidates, interest_embedding, k=15)
-    yield sse("stage_done", {"id": 3, "count": len(top_candidates)})
+    # yield sse("stage", {"id": 3, "label": "Finding programs aligned with your inclination"})
+    # interest_embedding = await embed(interest_profile)
+    # top_candidates = await pgvector_topk(candidates, interest_embedding, k=15)
+    # yield sse("stage_done", {"id": 3, "count": len(top_candidates)})
 
     # Stage 4: Per-program reasoning (parallel LLM calls)
     # yield sse("stage", {"id": 4, "label": "Analyzing fit for each program"})
@@ -36,6 +37,9 @@ async def match_pipeline(session_id: str):
     # yield sse("stage", {"id": 5, "label": "Ranking your top matches"})
     # final_ranking = await synthesize_ranking(top_candidates)
     # yield sse("complete", final_ranking)
+
+    if False:
+        yield None
 
 @router.post("/stream")
 async def match_stream(req: MatchRequest):

@@ -65,3 +65,57 @@ Used when you query like:
 sqlWHERE name LIKE 'Tong%'  -- starts with "Tong"
 Important: this only works for prefix matches. LIKE '%tong%' (contains) still does a full scan.
 
+
+
+### programs
+-- Step 1: drop the old table. CASCADE clears the FK from any side that
+-- references programs. (Your schools table doesn't reference programs,
+-- so this is safe — only the programs.school_id FK gets dropped.)
+DROP TABLE IF EXISTS public.programs CASCADE;
+
+-- Step 2: recreate with the CSV-aligned schema.
+CREATE TABLE public.programs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  degree_type text NULL,
+  description text NULL,
+  department text NULL,
+  university text NOT NULL,
+  country text NOT NULL,
+  research_areas text NULL,
+  duration_months integer NULL,
+  program_us_ranking integer NULL,
+  annual_tuition_and_fees integer NULL,
+  annual_living_expenses integer NULL,
+  est_total_cost integer NULL,
+  estimated_cohort_size integer NULL,
+  course_quality_score double precision NULL,
+  workload_score double precision NULL,
+  job_placement_score double precision NULL,
+  phd_pathway_detail text NULL,
+  geographical_score double precision NULL,
+  assistanship_score double precision NULL,
+  living_experience text NULL,
+  climate text NULL,
+  safety_score double precision NULL,
+  min_gpa double precision NULL,
+  min_toefl integer NULL,
+  min_ielts double precision NULL,
+  gre_required boolean NULL,
+  acceptance_rate double precision NULL,
+  official_website text NULL,
+  embedding extensions.vector(1536) NULL,
+  created_at timestamp without time zone NULL DEFAULT now(),
+  school_id uuid NULL,
+  CONSTRAINT programs_pkey PRIMARY KEY (id),
+  CONSTRAINT programs_school_id_fkey FOREIGN KEY (school_id) REFERENCES public.schools(id)
+);
+
+-- Step 3: HNSW index on the embedding column for fast similarity search later.
+-- Cosine distance because text-embedding-v4 vectors are unit-normalized.
+CREATE INDEX IF NOT EXISTS programs_embedding_hnsw
+ON public.programs
+USING hnsw (embedding extensions.vector_cosine_ops);
+
+#### service role for local py execution
+GRANT SELECT, UPDATE, INSERT ON TABLE public.programs TO service_role;
