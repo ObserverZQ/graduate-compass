@@ -2,12 +2,37 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import asyncio, json
+from uuid import UUID
+
+from apps.api.schemas.match import EventName, MatchEvent
 
 router = APIRouter()
 
 class MatchRequest(BaseModel):
-    session_id: str
-
+    session_id: UUID # validate the session_id to avoid error in database
+'''ERROR HANDLING
+{
+  "type": "error",
+  "code": "PROFILE_NOT_REVIEWED",
+  "message": "Complete profile review before requesting matches.",
+  "retryable": false
+}
+'''
+'''
+SSE STAGES:
+- run_started
+- stage_started or stage_completed
+- profile_loaded
+- filters_applied
+- candidate_scored
+- explanation_started
+- candidate_explained
+- warning
+- complete
+- error
+'''
+# Historical prototype retained for development comparison. The active route
+# uses deterministic_match_pipeline below; this sketch is not executed.
 # TODO: match function, 5 stages, working in progress
 async def match_pipeline(session_id: str):
     # Stage 1: Hard filter (deterministic, no LLM)
@@ -40,12 +65,36 @@ async def match_pipeline(session_id: str):
 
     if False:
         yield None
+    # todo return complete or error
+    # PROFILE_NOT_REVIEWED if preference is null
+
+
+async def deterministic_match_pipeline(session_id: UUID):
+    """Orchestrate deterministic matching and emit validated SSE events.
+
+    Data loading, scoring, and terminal behavior will be added through the
+    separately reviewed implementation patches. Keeping a distinct name makes
+    it unambiguous that the route does not execute the historical prototype.
+    """
+    if False:
+        yield ""
+
+
+def format_match_event(event: MatchEvent) -> str:
+    """Frame one validated matching event according to the SSE protocol."""
+    event_name = EventName(event.type).value
+    return f"event: {event_name}\ndata: {event.model_dump_json()}\n\n"
+
 
 @router.post("/stream")
 async def match_stream(req: MatchRequest):
     return StreamingResponse(
-        match_pipeline(req.session_id),
+        deterministic_match_pipeline(req.session_id),
         media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 def sse(event: str, data: dict) -> str:
