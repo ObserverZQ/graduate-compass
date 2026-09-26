@@ -77,7 +77,7 @@ class WarningCode(StrEnum):
 
     MISSING_PROFILE_DATA = "missing_profile_data"
     MISSING_PROGRAM_DATA = "missing_program_data"
-    FEWER_THAN_SIX_RESULTS = "fewer_than_six_results"
+    FEWER_THAN_EIGHT_RESULTS = "fewer_than_eight_results"
 
 
 class MatchErrorCode(StrEnum):
@@ -106,7 +106,7 @@ class ScoreFactor(ContractModel):
 class ProgramMatchResult(ContractModel):
     """Explainable ranked result returned to the matching experience."""
 
-    rank: int = Field(ge=1, le=6)
+    rank: int = Field(ge=1, le=8)
     program_id: UUID
     name: str
     university: str
@@ -150,7 +150,7 @@ class RunStartedEvent(EventBase):
 
     type: Literal["run_started"] = "run_started"
     score_version: str
-    result_limit: int = Field(default=6, ge=1, le=6)
+    result_limit: int = Field(default=8, ge=1, le=8)
     explanation_mode: Literal["deterministic", "ai"] = "deterministic"
 
 
@@ -212,7 +212,7 @@ class ExplanationStartedEvent(EventBase):
 
     type: Literal["explanation_started"] = "explanation_started"
     message: str
-    candidate_count: int = Field(ge=1, le=6)
+    candidate_count: int = Field(ge=1, le=8)
     mode: Literal["deterministic", "ai"] = "deterministic"
 
 
@@ -241,7 +241,7 @@ class CompleteEvent(EventBase):
     score_version: str
     # The terminal event repeats incrementally streamed results so clients can
     # recover a complete snapshot even if they ignored intermediate events.
-    results: list[ProgramMatchResult] = Field(min_length=1, max_length=6)
+    results: list[ProgramMatchResult] = Field(min_length=1, max_length=8)
     disclaimer: str
 
 
