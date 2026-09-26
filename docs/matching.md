@@ -1,0 +1,1 @@
+“The initial design used parallel per-candidate reasoning and an LLM ranking pass. I simplified it after considering latency, cost, consistency, and failure isolation. Deterministic logic owns ranking; GPT‑5.6 owns explanation.”
