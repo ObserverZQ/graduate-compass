@@ -1,6 +1,7 @@
 EXTRACTION_PROMPT = """\
-Parse the resume text below and return a single JSON object with these exact keys.
-Use null for any field not present in the resume.
+Parse the resume text below and return a single JSON object with exactly the
+keys listed here. Do not add keys. Use null for an unknown scalar field and an
+empty array for an unknown collection.
 Keep all free-text descriptions concise (1-2 sentences). Do not copy full
 bullet-point lists from the resume verbatim.
 

@@ -17,6 +17,7 @@ from apps.api.schemas.match import (
     FactorStatus,
     ProgramMatchResult,
 )
+from apps.api.schemas.profile import ApplicantProfile
 
 
 MAX_CANDIDATES = 30
@@ -149,26 +150,12 @@ class GetProgramDetailsOutput(ContractModel):
     )
 
 
-class ApplicantRequirements(ContractModel):
-    """Reviewed applicant facts relevant to published requirements."""
-
-    # Reviewed degree types the applicant intends to pursue.
-    target_degrees: list[str] = Field(
-        default_factory=list,
-        max_length=MAX_FILTER_VALUES,
-    )
-    gpa: float | None = Field(default=None, ge=0)
-    # Denominator of the applicant's GPA scale, such as 4.0 or 100.
-    gpa_base: float | None = Field(default=None, gt=0)
-    # TOEFL score normalized to the commonly published 120-point scale.
-    toefl_scale_120: int | None = Field(default=None, ge=0, le=120)
-    ielts: float | None = Field(default=None, ge=0, le=9)
-
-
 class AssessRequirementsInput(ContractModel):
     """Reviewed applicant facts and programs to assess without filtering."""
 
-    applicant: ApplicantRequirements
+    # The reviewed profile type prevents raw extraction output or a loose
+    # dictionary from crossing into requirement assessment.
+    applicant: ApplicantProfile
     programs: list[ProgramDetails] = Field(
         min_length=1,
         max_length=MAX_CANDIDATES,

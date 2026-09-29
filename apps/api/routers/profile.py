@@ -1,10 +1,16 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
-from pydantic import BaseModel
+from pydantic import ValidationError
 from sqlalchemy import text
 from sqlalchemy.engine import CursorResult
 from apps.api.database import SessionLocal
 from apps.api.clients import deepseek, supabase
 from apps.api.prompts.resume_extraction import EXTRACTION_PROMPT
+from apps.api.schemas.profile import (
+    AnalyzeResumeRequest,
+    ApplicantProfile,
+    ExtractedApplicantProfile,
+    ReviewedProfileResponse,
+)
 import pdfplumber
 import asyncio
 import io
@@ -14,50 +20,6 @@ import uuid
 from typing import cast
 
 router = APIRouter()
-
-
-class WorkExperience(BaseModel):
-    company: str | None = None
-    title: str | None = None
-    start_date: str | None = None
-    end_date: str | None = None
-    description: str | None = None
-
-
-class ResearchExperience(BaseModel):
-    institution: str | None = None
-    title: str | None = None
-    start_date: str | None = None
-    end_date: str | None = None
-    description: str | None = None
-
-
-class Publication(BaseModel):
-    title: str | None = None
-    venue: str | None = None
-    year: str | int | None = None
-    authors: str | None = None
-
-
-class AnalyzeResumeRequest(BaseModel):
-    session_id: str
-    resume_raw_text: str
-
-
-class SubmitProfileRequest(BaseModel):
-    session_id: str
-    name: str | None = None
-    gpa: float | None = None
-    gpa_base: float | None = None
-    gpa_ranking: str | None = None
-    toefl_scale_6: float | None = None
-    toefl_scale_120: int | None = None
-    ielts: float | None = None
-    target_degrees: list[str] = []
-    work_experiences: list[WorkExperience] = []
-    research_experiences: list[ResearchExperience] = []
-    publications: list[Publication] = []
-    preferences: dict[str, str | list[str]] = {}
 
 
 @router.post("/upload-resume")
@@ -138,7 +100,13 @@ async def upload_resume(
     }
 
 
-@router.post("/analyze-resume")
+@router.post(
+    "/analyze-resume",
+    response_model=ExtractedApplicantProfile,
+    # Keep the existing frontend wire shape while version/provenance remain
+    # internal trust-boundary metadata.
+    response_model_exclude={"schema_version", "provenance", "research_interests"},
+)
 async def analyze_resume(payload: AnalyzeResumeRequest):
     # Ask DeepSeek to extract all structured fields in one LLM call.
     # AsyncOpenAI lets us await the completion natively without blocking a
@@ -154,7 +122,17 @@ async def analyze_resume(payload: AnalyzeResumeRequest):
     raw_content = response.choices[0].message.content
     if raw_content is None:
         raise RuntimeError("DeepSeek response has no content")
-    fields = json.loads(raw_content)
+    try:
+        extracted = ExtractedApplicantProfile.model_validate_json(raw_content)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Resume extraction returned an invalid profile.",
+        ) from exc
+    fields = extracted.model_dump(
+        mode="json",
+        exclude={"schema_version", "provenance", "research_interests"},
+    )
 
     # Fill in the structured fields on the row created by /upload-resume.
     async with SessionLocal() as session:
@@ -174,7 +152,7 @@ async def analyze_resume(payload: AnalyzeResumeRequest):
                 updated_at = now()
             WHERE session_id = :session_id
         """), {
-            "session_id": payload.session_id,
+            "session_id": str(payload.session_id),
             "name": fields.get("name"),
             "gpa": fields.get("gpa"),
             "gpa_base": fields.get("gpa_base"),
@@ -191,23 +169,11 @@ async def analyze_resume(payload: AnalyzeResumeRequest):
             raise HTTPException(status_code=404, detail="session not found; call /upload-resume first")
         await session.commit()
 
-    return {
-        "name": fields.get("name"),
-        "gpa": fields.get("gpa"),
-        "gpa_base": fields.get("gpa_base"),
-        "gpa_ranking": fields.get("gpa_ranking"),
-        "toefl_scale_6": fields.get("toefl_scale_6"),
-        "toefl_scale_120": fields.get("toefl_scale_120"),
-        "ielts": fields.get("ielts"),
-        "target_degrees": fields.get("target_degrees") or [],
-        "work_experiences": fields.get("work_experiences") or [],
-        "research_experiences": fields.get("research_experiences") or [],
-        "publications": fields.get("publications") or [],
-    }
+    return extracted
 
 
-@router.post("/preferences")
-async def save_preferences(payload: SubmitProfileRequest):
+@router.post("/preferences", response_model=ReviewedProfileResponse)
+async def save_preferences(payload: ApplicantProfile):
     # Persist the user's reviewed/edited resume fields plus their preferences.
     async with SessionLocal() as session:
         result = cast(CursorResult, await session.execute(text("""
@@ -227,7 +193,7 @@ async def save_preferences(payload: SubmitProfileRequest):
                 updated_at = now()
             WHERE session_id = :session_id
         """), {
-            "session_id": payload.session_id,
+            "session_id": str(payload.session_id),
             "name": payload.name,
             "gpa": payload.gpa,
             "gpa_base": payload.gpa_base,
@@ -235,11 +201,17 @@ async def save_preferences(payload: SubmitProfileRequest):
             "toefl_scale_6": payload.toefl_scale_6,
             "toefl_scale_120": payload.toefl_scale_120,
             "ielts": payload.ielts,
-            "target_degrees": payload.target_degrees,
-            "work_experiences": json.dumps([w.model_dump() for w in payload.work_experiences]),
-            "research_experiences": json.dumps([r.model_dump() for r in payload.research_experiences]),
-            "publications": json.dumps([p.model_dump() for p in payload.publications]),
-            "preferences": json.dumps(payload.preferences),
+            "target_degrees": [degree.value for degree in payload.target_degrees],
+            "work_experiences": json.dumps(
+                [work.model_dump(mode="json") for work in payload.work_experiences]
+            ),
+            "research_experiences": json.dumps(
+                [research.model_dump(mode="json") for research in payload.research_experiences]
+            ),
+            "publications": json.dumps(
+                [publication.model_dump(mode="json") for publication in payload.publications]
+            ),
+            "preferences": json.dumps(payload.preferences.model_dump(mode="json")),
         }))
         if result.rowcount == 0:
             raise HTTPException(status_code=404, detail="session not found; call /upload-resume first")

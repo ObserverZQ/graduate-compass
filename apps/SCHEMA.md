@@ -61,15 +61,15 @@
 | user_profiles  | target_degrees                 | ARRAY                       | YES         |
 | user_profiles  | resume_file_url                | text                        | YES         |
 | user_profiles  | resume_raw_text                | text                        | YES         |
-| user_profiles  | extracted_gpa                  | double precision            | YES         |
+| user_profiles  | gpa                            | double precision            | YES         |
 | user_profiles  | gpa_base                       | double precision            | YES         |
-| user_profiles  | extracted_ranking              | text                        | YES         |
-| user_profiles  | extracted_toefl                | double precision            | YES         |
-| user_profiles  | extracted_toefl_legacy         | integer                     | YES         |
-| user_profiles  | extracted_ielts                | double precision            | YES         |
-| user_profiles  | extracted_work_experiences     | jsonb                       | YES         |
-| user_profiles  | extracted_research_experiences | jsonb                       | YES         |
-| user_profiles  | extracted_publications         | jsonb                       | YES         |
+| user_profiles  | gpa_ranking                    | text                        | YES         |
+| user_profiles  | toefl_scale_6                  | double precision            | YES         |
+| user_profiles  | toefl_scale_120                | integer                     | YES         |
+| user_profiles  | ielts                          | double precision            | YES         |
+| user_profiles  | work_experiences               | jsonb                       | YES         |
+| user_profiles  | research_experiences           | jsonb                       | YES         |
+| user_profiles  | publications                   | jsonb                       | YES         |
 | user_profiles  | preferences                    | jsonb                       | YES         |
 | user_profiles  | created_at                     | timestamp with time zone    | YES         |
 | user_profiles  | updated_at                     | timestamp with time zone    | YES         |
