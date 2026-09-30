@@ -61,6 +61,8 @@ class ProgramSummary(ContractModel):
         default_factory=list,
         max_length=MAX_EVIDENCE_ITEMS,
     )
+    # Public destination retained through ranking for the final result card.
+    official_website: str | None = Field(default=None, max_length=2_000)
 
 
 class SearchProgramsInput(ContractModel):
@@ -128,7 +130,8 @@ class ProgramDetails(ContractModel):
     min_ielts: float | None = Field(default=None, ge=0)
     # Whether the program explicitly publishes the GRE as required.
     gre_required: bool | None = None
-    climate: str | None = Field(default=None, max_length=120)
+    # Source data may contain a short climate description, not only a label.
+    climate: str | None = Field(default=None, max_length=1_000)
     # Qualitative location and student-life evidence, not a numeric rating.
     living_experience: str | None = Field(default=None, max_length=5_000)
     # Existing catalogue indicator for employment outcomes; not a probability.
