@@ -11,7 +11,7 @@ from enum import StrEnum
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ContractModel(BaseModel):
@@ -27,6 +27,7 @@ class EventName(StrEnum):
 
     RUN_STARTED = "run_started"
     STAGE_STARTED = "stage_started"
+    STAGE_PROGRESS = "stage_progress"
     STAGE_COMPLETED = "stage_completed"
     PROFILE_LOADED = "profile_loaded"
     FILTERS_APPLIED = "filters_applied"
@@ -42,8 +43,10 @@ class MatchStage(StrEnum):
     """Coarse pipeline stages used to group the more specific SSE events."""
 
     PROFILE = "profile"
+    DISCOVERY = "discovery"
     ELIGIBILITY = "eligibility"
-    SCORING = "scoring"
+    REQUIREMENTS = "requirements"
+    PREFERENCES = "preferences"
     RANKING = "ranking"
     EXPLANATION = "explanation"
 
@@ -149,6 +152,7 @@ class RunStartedEvent(EventBase):
     """Announces the deterministic configuration for a new matching run."""
 
     type: Literal["run_started"] = "run_started"
+    message: str
     score_version: str
     result_limit: int = Field(default=8, ge=1, le=8)
     explanation_mode: Literal["deterministic", "ai"] = "deterministic"
@@ -172,6 +176,24 @@ class StageCompletedEvent(EventBase):
     # Optional timing supports observability without making it part of the
     # deterministic ranking inputs or requiring exact timing assertions.
     duration_ms: int | None = Field(default=None, ge=0)
+
+
+class StageProgressEvent(EventBase):
+    """Reports truthful progress when a stage has a known amount of work."""
+
+    type: Literal["stage_progress"] = "stage_progress"
+    stage: MatchStage
+    message: str
+    processed: int = Field(ge=0)
+    total: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def validate_progress(self) -> "StageProgressEvent":
+        """Reject a progress update that claims more work than exists."""
+
+        if self.processed > self.total:
+            raise ValueError("processed cannot exceed total")
+        return self
 
 
 class ProfileLoadedEvent(EventBase):
@@ -238,6 +260,7 @@ class CompleteEvent(EventBase):
     """Provides the authoritative final result set for a successful run."""
 
     type: Literal["complete"] = "complete"
+    message: str
     score_version: str
     # The terminal event repeats incrementally streamed results so clients can
     # recover a complete snapshot even if they ignored intermediate events.
@@ -259,6 +282,7 @@ class ErrorEvent(EventBase):
 MatchEvent = Annotated[
     RunStartedEvent
     | StageStartedEvent
+    | StageProgressEvent
     | StageCompletedEvent
     | ProfileLoadedEvent
     | FiltersAppliedEvent

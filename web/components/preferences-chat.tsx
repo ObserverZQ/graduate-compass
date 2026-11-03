@@ -35,12 +35,10 @@ type Message =
   | { role: 'user'; text: string };
 
 interface PreferencesChatProps {
-  resumeText: string;
   onComplete: (preferences: Preferences) => void;
 }
 
 export default function PreferencesChat({
-  resumeText: _resumeText,
   onComplete,
 }: PreferencesChatProps) {
   const [messages, setMessages] = useState<Message[]>([

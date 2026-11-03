@@ -1,17 +1,18 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { uploadResume, ApiError } from '@/lib/api';
 import SpinnerCard from '@/components/spinner-card';
+import type { ExtractedProfile } from '@/lib/types';
 
 type UploadState =
   | { status: 'idle' }
   | { status: 'uploading' }
-  | { status: 'success'; extractedText: string; sessionId: string; resumeFileUrl: string }
+  | { status: 'success'; profile: ExtractedProfile }
   | { status: 'error'; message: string };
 
 interface FileUploadProps {
-  onSuccess: (extractedText: string, sessionId: string, resumeFileUrl: string) => void;
+  onSuccess: (sessionId: string, profile: ExtractedProfile) => void;
 }
 
 export default function FileUpload({ onSuccess }: FileUploadProps) {
@@ -26,19 +27,13 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
   );
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (state.status === 'success') {
-      onSuccess(state.extractedText, state.sessionId, state.resumeFileUrl);
-    }
-  }, [state, onSuccess]);
-
   async function handleFile(file: File) {
     if (!file) return;
     const ext = file.name.split('.').pop()?.toLowerCase();
-    if (!['pdf', 'doc', 'docx'].includes(ext ?? '')) {
+    if (ext !== 'pdf') {
       setState({
         status: 'error',
-        message: 'Please upload a PDF, DOC, or DOCX file.',
+        message: 'Please upload a PDF file.',
       });
       return;
     }
@@ -48,10 +43,9 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
       setSessionId(result.session_id);
       setState({
         status: 'success',
-        extractedText: result.extracted_text,
-        sessionId: result.session_id,
-        resumeFileUrl: result.resume_file_url,
+        profile: result.extracted_profile,
       });
+      onSuccess(result.session_id, result.extracted_profile);
     } catch (err) {
       const msg =
         err instanceof ApiError
@@ -98,7 +92,7 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
           Resume uploaded
         </p>
         <p className='text-xs text-zinc-400 dark:text-zinc-500 line-clamp-2 mb-4 max-w-sm mx-auto'>
-          {state.extractedText.slice(0, 200)}…
+          {state.profile.name ?? 'Your extracted profile is ready for review.'}
         </p>
         <button
           onClick={() => {
@@ -148,7 +142,7 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
   }
 
   if (state.status === 'uploading') {
-    return <SpinnerCard label='Uploading resume…' />;
+    return <SpinnerCard label='Uploading and reading your resume…' />;
   }
 
   return (
@@ -173,7 +167,7 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
       <input
         ref={inputRef}
         type='file'
-        accept='.pdf,.doc,.docx'
+        accept='.pdf'
         onChange={onInputChange}
         className='hidden'
         aria-hidden='true'

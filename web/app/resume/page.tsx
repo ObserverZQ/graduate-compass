@@ -1,31 +1,24 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import FileUpload from '@/components/file-upload';
 import PreferencesChat from '@/components/preferences-chat';
 import ProfileReview from '@/components/profile-review';
-import SpinnerCard from '@/components/spinner-card';
-import { ApiError, analyzeResume, submitProfile } from '@/lib/api';
+import MatchResults from '@/components/match-results';
+import { ApiError, submitProfile } from '@/lib/api';
 import type { ExtractedProfile, Preferences, SubmitProfilePayload } from '@/lib/types';
-
-type AnalysisState =
-  | { status: 'pending' }
-  | { status: 'done'; profile: ExtractedProfile }
-  | { status: 'error'; message: string };
 
 type FlowState =
   | { phase: 'idle' }
   | {
       phase: 'preferences';
       sessionId: string;
-      extractedText: string;
-      resumeFileUrl: string;
+      profile: ExtractedProfile;
     }
   | {
       phase: 'review';
       sessionId: string;
-      extractedText: string;
-      resumeFileUrl: string;
+      profile: ExtractedProfile;
       preferences: Preferences;
     }
   | { phase: 'submitted'; sessionId: string };
@@ -38,34 +31,15 @@ function errorMessage(err: unknown): string {
 
 export default function ResumePage() {
   const [flow, setFlow] = useState<FlowState>({ phase: 'idle' });
-  const [analysis, setAnalysis] = useState<AnalysisState>({ status: 'pending' });
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | undefined>();
-
-  // Kick off resume analysis in the background as soon as upload finishes,
-  // so it overlaps with the time the user spends on the preferences chat.
-  useEffect(() => {
-    if (flow.phase !== 'preferences') return;
-    analyzeResume(flow.sessionId, flow.extractedText)
-      .then((profile) => setAnalysis({ status: 'done', profile }))
-      .catch((err) => setAnalysis({ status: 'error', message: errorMessage(err) }));
-  }, [flow]);
-
-  function retryAnalysis() {
-    if (flow.phase !== 'preferences' && flow.phase !== 'review') return;
-    setAnalysis({ status: 'pending' });
-    analyzeResume(flow.sessionId, flow.extractedText)
-      .then((profile) => setAnalysis({ status: 'done', profile }))
-      .catch((err) => setAnalysis({ status: 'error', message: errorMessage(err) }));
-  }
 
   function handlePreferencesComplete(prefs: Preferences) {
     if (flow.phase !== 'preferences') return;
     setFlow({
       phase: 'review',
       sessionId: flow.sessionId,
-      extractedText: flow.extractedText,
-      resumeFileUrl: flow.resumeFileUrl,
+      profile: flow.profile,
       preferences: prefs,
     });
   }
@@ -95,8 +69,8 @@ export default function ResumePage() {
 
         {flow.phase === 'idle' && (
           <FileUpload
-            onSuccess={(extractedText, sessionId, resumeFileUrl) =>
-              setFlow({ phase: 'preferences', sessionId, extractedText, resumeFileUrl })
+            onSuccess={(sessionId, profile) =>
+              setFlow({ phase: 'preferences', sessionId, profile })
             }
           />
         )}
@@ -137,27 +111,14 @@ export default function ResumePage() {
             All questions are optional — skip anything that doesn&apos;t apply.
           </p>
           <PreferencesChat
-            resumeText={flow.extractedText}
             onComplete={handlePreferencesComplete}
           />
-          {analysis.status === 'error' && (
-            <p className='mt-4 text-sm text-red-500 dark:text-red-400'>
-              {analysis.message}{' '}
-              <button
-                onClick={retryAnalysis}
-                className='underline underline-offset-2 hover:text-red-600 dark:hover:text-red-300'
-              >
-                Retry analysis
-              </button>
-            </p>
-          )}
         </section>
       )}
 
       {flow.phase === 'review' && (
         <section className='animate-fade-in'>
-          {analysis.status === 'done' && (
-            <>
+          <>
               <h2 className='text-xl font-semibold mb-2 text-zinc-900 dark:text-zinc-100'>
                 Review your profile
               </h2>
@@ -166,40 +127,18 @@ export default function ResumePage() {
               </p>
               <ProfileReview
                 sessionId={flow.sessionId}
-                initialProfile={analysis.profile}
+                initialProfile={flow.profile}
                 initialPreferences={flow.preferences}
                 onSubmit={handleSubmit}
                 submitting={submitting}
                 submitError={submitError}
               />
-            </>
-          )}
-
-          {analysis.status === 'pending' && <SpinnerCard label='Analyzing your resume…' />}
-
-          {analysis.status === 'error' && (
-            <p className='text-sm text-red-500 dark:text-red-400'>
-              {analysis.message}{' '}
-              <button
-                onClick={retryAnalysis}
-                className='underline underline-offset-2 hover:text-red-600 dark:hover:text-red-300'
-              >
-                Retry analysis
-              </button>
-            </p>
-          )}
+          </>
         </section>
       )}
 
       {flow.phase === 'submitted' && (
-        <section className='animate-fade-in'>
-          <h2 className='text-xl font-semibold mb-2 text-zinc-900 dark:text-zinc-100'>
-            Profile saved!
-          </h2>
-          <p className='text-sm text-zinc-500 dark:text-zinc-400'>
-            We&apos;ll use this to match you with graduate programs. (Program matching coming soon.)
-          </p>
-        </section>
+        <MatchResults sessionId={flow.sessionId} />
       )}
     </main>
   );

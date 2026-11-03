@@ -48,3 +48,35 @@ export interface SubmitProfilePayload extends ExtractedProfile {
   session_id: string;
   preferences: Preferences;
 }
+
+/** A ranked recommendation, including evidence and a practical next step. */
+export interface ProgramMatchResult {
+  rank: number;
+  program_id: string;
+  name: string;
+  university: string;
+  country: string;
+  fit_score: number;
+  why_match: string;
+  strengths: string[];
+  gaps: string[];
+  uncertainties: string[];
+  next_action: string;
+  official_website: string | null;
+}
+
+/** Fields used by the results screen from the versioned backend SSE events. */
+export interface MatchStreamEvent {
+  type: string;
+  message?: string;
+  stage?: string;
+  code?: string;
+  processed?: number;
+  total?: number;
+  result?: ProgramMatchResult;
+  results?: ProgramMatchResult[];
+  disclaimer?: string;
+  retryable?: boolean;
+  run_id: string;
+  sequence: number;
+}

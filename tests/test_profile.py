@@ -140,11 +140,10 @@ class ApplicantProfileContractTests(unittest.TestCase):
         self.assertIsNone(profile.preferences.budget)
         self.assertEqual(profile.preferences.career_goal, CareerGoal.UNDECIDED)
 
-    def test_analyze_request_validates_session_and_resume_text(self) -> None:
-        request = AnalyzeResumeRequest(
-            session_id=SESSION_ID,
-            resume_raw_text="Synthetic resume text",
-        )
+    def test_analyze_request_accepts_only_a_valid_session(self) -> None:
+        """The browser sends an ID, never a second copy of résumé text."""
+
+        request = AnalyzeResumeRequest(session_id=SESSION_ID)
 
         self.assertEqual(request.session_id, SESSION_ID)
 
@@ -152,9 +151,14 @@ class ApplicantProfileContractTests(unittest.TestCase):
             AnalyzeResumeRequest.model_validate(
                 {
                     "session_id": "not-a-uuid",
-                    "resume_raw_text": "",
                 }
             )
+
+        with self.assertRaises(ValidationError):
+            AnalyzeResumeRequest.model_validate({
+                "session_id": SESSION_ID,
+                "resume_raw_text": "Synthetic resume text",
+            })
 
 
 if __name__ == "__main__":
